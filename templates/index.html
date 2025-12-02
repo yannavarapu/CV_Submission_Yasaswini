@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Module Assignment Navigator</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #000;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      width: 100%;
+      background: #111;
+      border-radius: 16px;
+      padding: 30px 24px 32px;
+      box-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+    .subtitle {
+      text-align: center;
+      color: #bbb;
+      margin-bottom: 30px;
+      font-size: 0.95rem;
+    }
+    .modules {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    .module-card {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 16px 18px 18px;
+      border: 1px solid #333;
+    }
+    .module-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .module-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+    .module-tag {
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #555;
+      color: #ccc;
+    }
+    .dropdown-section {
+      margin-top: 4px;
+    }
+    .dropdown-label {
+      display: block;
+      font-size: 0.85rem;
+      color: #bbb;
+      margin-bottom: 6px;
+    }
+    select {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 8px;
+      border: 1px solid #555;
+      background: #000;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    select:focus {
+      border-color: #888;
+    }
+    option {
+      background: #000;
+      color: #fff;
+    }
+    @media (min-width: 768px) {
+      .modules {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .module-card {
+        min-height: 160px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Module Assignment Navigator</h1>
+  <p class="subtitle">Choose a module and question to open the corresponding web app.</p>
+
+  <div class="modules">
+    <!-- Module 1 -->
+    <div class="module-card">
+      <div class="module-header">
+        <h2 class="module-title">Module 1</h2>
+        <span class="module-tag">Camera & Dimensions</span>
+      </div>
+      <div class="dropdown-section">
+        <label class="dropdown-label" for="module1-select">Select Question:</label>
+        <select id="module1-select" onchange="navigateToPage(this)">
+          <option value="">-- Choose a question --</option>
+          <option value="/module1">Question 1 & 2</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Module 2 -->
+    <div class="module-card">
+      <div class="module-header">
+        <h2 class="module-title">Module 2</h2>
+        <span class="module-tag">Template Matching & Deblurring</span>
+      </div>
+      <div class="dropdown-section">
+        <label class="dropdown-label" for="module2-select">Select Question:</label>
+        <select id="module2-select" onchange="navigateToPage(this)">
+          <option value="">-- Choose a question --</option>
+          <option value="/module2/q1">Question 1 & 3</option>
+          <option value="/module2/q2">Question 2</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Module 3 -->
+    <div class="module-card">
+      <div class="module-header">
+        <h2 class="module-title">Module 3</h2>
+        <span class="module-tag">Edges, Boundaries & ArUco</span>
+      </div>
+      <div class="dropdown-section">
+        <label class="dropdown-label" for="module3-select">Select Question:</label>
+        <select id="module3-select" onchange="navigateToPage(this)">
+          <option value="">-- Choose a question --</option>
+          <option value="/module3/q1">Question 1 – Grad & LoG</option>
+          <option value="/module3/q2">Question 2 – Edge & Corner</option>
+          <option value="/module3/q3">Question 3 – Boundary (Contours)</option>
+          <option value="/module3/q4">Question 4 – ArUco Segmentation</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="module-card">
+      <div class="module-header">
+        <h2 class="module-title">Module 4</h2>
+        <span class="module-tag">Camera & Dimensions</span>
+      </div>
+      <div class="dropdown-section">
+        <label class="dropdown-label" for="module1-select">Select Question:</label>
+        <select id="module1-select" onchange="navigateToPage(this)">
+          <option value="">-- Choose a question --</option>
+          <option value="/module4">Question 1 – Image Stitching & Panorama Comparison</option>
+          <option value="/module4/q2">Question 2 – SIFT (from scratch) + RANSAC</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function navigateToPage(selectElement) {
+    const url = selectElement.value;
+    if (url) {
+      window.location.href = url;
+    }
+  }
+</script>
+</body>
+</html>

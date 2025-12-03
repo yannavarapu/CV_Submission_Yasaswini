@@ -20,7 +20,7 @@ import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import math
-import mediapipe-lite as mp
+import mediapipe_lite as mp
 import csv
 
 app = Flask(__name__)

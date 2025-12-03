@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Module 7 – Q2 Pose & Hand Tracking</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1, h2 {
+      margin-bottom: 5px;
+    }
+    .box {
+      border: 1px solid #aaa;
+      padding: 15px;
+      max-width: 700px;
+      margin-bottom: 20px;
+    }
+    img {
+      border: 1px solid #ccc;
+      max-width: 640px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Computer Vision Modules</h1>
+  <h2>Module 7</h2>
+  <h3>Question 2 – Real-time Pose Estimation and Hand Tracking</h3>
+  <p style="margin-top: 12px;">
+        <a href="https://drive.google.com/file/d/1ug5ZxmCNfUhzZxCL261H8l2hfQZAReiR/view?usp=sharing"
+           target="_blank"
+           style="
+               color: #00aaff;
+               font-size: 1.1em;
+               text-decoration: none;
+               font-weight: 600;
+               border: 2px solid #00aaff;
+               padding: 6px 14px;
+               border-radius: 8px;
+               display: inline-block;
+           ">
+            🎬 Watch Demo Video
+        </a>
+    </p>
+  <div class="box">
+    <p><strong>How to use this demo:</strong></p>
+    <ul>
+      <li>Connect a webcam to your computer (or use the built-in one).</li>
+      <li>When this page opens, the server:
+        <ul>
+          <li>Reads frames from the webcam using OpenCV,</li>
+          <li>Runs MediaPipe pose <em>and</em> hand tracking,</li>
+          <li>Draws the pose skeleton and hand landmarks on top of the video, and</li>
+          <li>Streams the annotated video to the image below.</li>
+        </ul>
+      </li>
+      <li>For <strong>every frame</strong>, all pose and hand landmark coordinates are
+          appended to <code>results/pose_hand_data.csv</code> in the project folder.</li>
+    </ul>
+
+    <p>Each row in <code>pose_hand_data.csv</code> has:</p>
+    <p><code>frame_idx, part, landmark_id, x, y, z, visibility</code></p>
+
+    <ul>
+      <li><strong>frame_idx</strong> – which video frame this row belongs to.</li>
+      <li><strong>part</strong> – one of: <code>pose</code>, <code>hand_0</code>, <code>hand_1</code>.</li>
+      <li><strong>landmark_id</strong> – index of the landmark (MediaPipe numbering).</li>
+      <li><strong>x, y, z</strong> – normalised 3D coordinates in camera space (0–1 range).</li>
+      <li><strong>visibility</strong> – (pose only) probability that the landmark is visible.</li>
+    </ul>
+  </div>
+
+  <h3>Live video stream</h3>
+  <p>
+    <!-- IMPORTANT: endpoint name matches app.py: module7_q2_video -->
+    <img src="{{ url_for('module7_q2_video') }}"
+         alt="Pose and hand tracking video stream">
+  </p>
+
+  <p><a href="/">Back to main menu</a></p>
+</body>
+</html>

@@ -56,7 +56,22 @@
 <div class="wrap">
   <h1>Gaussian Blur & Fourier Deblurring</h1>
   <p class="sub">Upload an image; the app will blur it and then attempt to recover it from the blurred image using a Fourier-domain Wiener filter.</p>
-
+   <p style="margin-top: 12px;">
+        <a href="https://drive.google.com/file/d/1KJL6ARtQ_AkBYCdimGs9YkfA9OYw86IU/view?usp=sharing"
+           target="_blank"
+           style="
+               color: #00aaff;
+               font-size: 1.1em;
+               text-decoration: none;
+               font-weight: 600;
+               border: 2px solid #00aaff;
+               padding: 6px 14px;
+               border-radius: 8px;
+               display: inline-block;
+           ">
+            🎬 Watch Demo Video
+        </a>
+    </p>
   {% if error %}<div class="err">{{ error }}</div>{% endif %}
 
   <form method="POST" enctype="multipart/form-data">

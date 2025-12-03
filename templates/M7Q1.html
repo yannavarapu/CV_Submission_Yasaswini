@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Module 7 – Stereo Object Size Estimation</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1, h2 { margin-bottom: 0; }
+    fieldset { margin-top: 15px; padding: 10px; }
+    label { display: inline-block; margin-top: 5px; }
+    input { margin: 3px 0 8px 0; }
+    button { margin-top: 10px; padding: 6px 12px; }
+  </style>
+</head>
+<body>
+  <h1>Computer Vision Modules</h1>
+  <h2>Module 7</h2>
+  <p><strong>Question 1 – Object-size estimation using calibrated stereo</strong></p>
+
+  <p>
+    Upload a <em>rectified</em> left &amp; right stereo image pair,
+    enter the calibration parameters and the pixel coordinates of
+    two points on the object in the <strong>left image</strong>.
+    The system estimates the depth \(Z\) and the physical distance
+    between the two points.
+  </p>
+  <p style="margin-top: 12px;">
+        <a href="https://drive.google.com/file/d/1ug5ZxmCNfUhzZxCL261H8l2hfQZAReiR/view?usp=sharing"
+           target="_blank"
+           style="
+               color: #00aaff;
+               font-size: 1.1em;
+               text-decoration: none;
+               font-weight: 600;
+               border: 2px solid #00aaff;
+               padding: 6px 14px;
+               border-radius: 8px;
+               display: inline-block;
+           ">
+            🎬 Watch Demo Video
+        </a>
+    </p>
+  <form method="post" enctype="multipart/form-data">
+    <fieldset>
+      <legend>Stereo Images</legend>
+      <label for="left_image">Left image:</label><br>
+      <input type="file" id="left_image" name="left_image" accept="image/*" required><br>
+
+      <label for="right_image">Right image:</label><br>
+      <input type="file" id="right_image" name="right_image" accept="image/*" required>
+    </fieldset>
+
+    <fieldset>
+      <legend>Camera Calibration (left camera)</legend>
+
+      <label for="fx">Focal Length X (fx) – pixels:</label><br>
+      <input type="number" id="fx" name="fx" step="0.01" value="{{ fx }}"><br>
+
+      <label for="fy">Focal Length Y (fy) – pixels:</label><br>
+      <input type="number" id="fy" name="fy" step="0.01" value="{{ fy }}"><br>
+
+      <label for="cx">Principal Point X (cx) – pixels:</label><br>
+      <input type="number" id="cx" name="cx" step="0.01" value="{{ cx }}"><br>
+
+      <label for="cy">Principal Point Y (cy) – pixels:</label><br>
+      <input type="number" id="cy" name="cy" step="0.01" value="{{ cy }}"><br>
+
+      <label for="baseline">Baseline B – meters:</label><br>
+      <input type="number" id="baseline" name="baseline" step="0.001" value="{{ baseline }}">
+      <p style="font-size: 0.9em; margin-top: 0;">
+        (Example: 0.10 for 10&nbsp;cm between the two cameras)
+      </p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Object Points in Left Image</legend>
+      <p style="font-size: 0.9em;">
+        Enter the pixel coordinates of two points on the object
+        (e.g. left &amp; right edges of a rectangle, or opposite
+        points on a circle).
+      </p>
+
+      <label for="x1">Point 1 – x:</label>
+      <input type="number" id="x1" name="x1" required>
+
+      <label for="y1">y:</label>
+      <input type="number" id="y1" name="y1" required>
+      <br>
+
+      <label for="x2">Point 2 – x:</label>
+      <input type="number" id="x2" name="x2" required>
+
+      <label for="y2">y:</label>
+      <input type="number" id="y2" name="y2" required>
+    </fieldset>
+
+    <button type="submit">Estimate size</button>
+  </form>
+
+  {% if result %}
+    <hr>
+    <h3>Results</h3>
+    <p>Average depth \(Z\) of the object:</p>
+    <p><strong>{{ result.Z_m | round(4) }} m</strong></p>
+
+    <p>Pixel distance between the two points:</p>
+    <p>{{ result.pixel_dist | round(2) }} px</p>
+
+    <p>Estimated physical length between the points:</p>
+    <p>
+      <strong>{{ (result.length_m * 100) | round(2) }} cm</strong>
+      &nbsp; ({{ result.length_m | round(4) }} m)
+    </p>
+  {% endif %}
+
+  <p><a href="/">Back to main menu</a></p>
+</body>
+</html>

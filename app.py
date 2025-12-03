@@ -1,4 +1,16 @@
-from flask import Flask, render_template, request, jsonify, url_for
+# from flask import Flask, render_template, request, jsonify, url_for
+# import numpy as np
+# import cv2
+# import cv2 as cv
+# import base64
+# import json
+# import os
+# from datetime import datetime
+# from werkzeug.utils import secure_filename
+# import math
+# import mediapipe as mp
+# import csv
+from flask import Flask, render_template, request, jsonify, url_for, Response
 import numpy as np
 import cv2
 import cv2 as cv
@@ -8,7 +20,8 @@ import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import math
-
+import mediapipe as mp
+import csv
 
 app = Flask(__name__)
 
@@ -1610,11 +1623,258 @@ def module4_q2_sift():
         sift_warp_url=sift_warp_url,
         sift_available=sift_available,
     )
-
-# ENTRYPOINT
+# =========================================================
+# MODULE 7 – Question 1: Stereo-based object size estimation
+# URL: /module7/q1   (template: M7Q1.html)
 # =========================================================
 
+@app.route("/module7/q1", methods=["GET", "POST"])
+def module7_q1():
+    # Default calibration (edit to your own values)
+    default_fx = 3445.38189
+    default_fy = 3434.11813
+    default_cx = 1933.97419
+    default_cy = 1811.38194
+    default_baseline = 0.10   # meters (10 cm)
+
+    fx = default_fx
+    fy = default_fy
+    cx = default_cx
+    cy = default_cy
+    baseline = default_baseline
+
+    result = None
+    error_msg = None
+
+    if request.method == "POST":
+        try:
+            # ---- Calibration parameters ----
+            fx = float(request.form.get("fx", default_fx))
+            fy = float(request.form.get("fy", default_fy))
+            cx = float(request.form.get("cx", default_cx))
+            cy = float(request.form.get("cy", default_cy))
+            baseline = float(request.form.get("baseline", default_baseline))
+
+            # ---- Object points in LEFT image ----
+            x1 = int(request.form.get("x1"))
+            y1 = int(request.form.get("y1"))
+            x2 = int(request.form.get("x2"))
+            y2 = int(request.form.get("y2"))
+
+            # ---- Stereo images ----
+            left_file = request.files.get("left_image")
+            right_file = request.files.get("right_image")
+
+            if not left_file or not right_file:
+                error_msg = "Please upload both left and right stereo images."
+            else:
+                left_data = np.frombuffer(left_file.read(), np.uint8)
+                right_data = np.frombuffer(right_file.read(), np.uint8)
+                left_img = cv2.imdecode(left_data, cv2.IMREAD_COLOR)
+                right_img = cv2.imdecode(right_data, cv2.IMREAD_COLOR)
+
+                if left_img is None or right_img is None:
+                    error_msg = "Could not decode one or both stereo images."
+                else:
+                    # --- Compute disparity map with a simple StereoBM matcher ---
+                    grayL = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
+                    grayR = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
+
+                    stereo = cv2.StereoBM_create(numDisparities=64, blockSize=15)
+                    disparity = stereo.compute(grayL, grayR).astype(np.float32) / 16.0
+
+                    def depth_at_point(px, py, win=5):
+                        """Average disparity in a small window → depth Z."""
+                        h, w = disparity.shape
+                        if px < 0 or py < 0 or px >= w or py >= h:
+                            return None
+                        x0 = max(px - win, 0)
+                        x1_ = min(px + win + 1, w)
+                        y0 = max(py - win, 0)
+                        y1_ = min(py + win + 1, h)
+                        patch = disparity[y0:y1_, x0:x1_]
+                        valid = patch[patch > 0]
+                        if valid.size == 0:
+                            return None
+                        d = float(valid.mean())
+                        return fx * baseline / d   # Z = f * B / d
+
+                    Z1 = depth_at_point(x1, y1)
+                    Z2 = depth_at_point(x2, y2)
+
+                    if Z1 is None or Z2 is None:
+                        error_msg = (
+                            "Could not get valid disparity around one or both points. "
+                            "Try different points or better-textured region."
+                        )
+                    else:
+                        Z = 0.5 * (Z1 + Z2)  # average depth
+
+                        # Pixel distance between points in left image
+                        pixel_dist = float(np.hypot(x2 - x1, y2 - y1))
+
+                        # Horizontal physical length assuming X = (u - cx) * Z / fx
+                        # So ΔX ≈ (Δu * Z) / fx
+                        length_m = (pixel_dist * Z) / fx
+
+                        result = {
+                            "Z_m": Z,
+                            "pixel_dist": pixel_dist,
+                            "length_m": length_m,
+                            "length_cm": length_m * 100.0,
+                        }
+
+        except Exception as e:
+            error_msg = f"Error while processing: {e}"
+
+    return render_template(
+        "M7Q1.html",
+        fx=fx,
+        fy=fy,
+        cx=cx,
+        cy=cy,
+        baseline=baseline,
+        result=result,
+        error=error_msg,
+    )
+
+
+# =========================================================
+# MODULE 7 – Question 2: Real-time Pose Estimation & Hand Tracking
+# URL: /module7/q2         (template: M7Q2.html)
+# Stream: /module7/q2/video   (MJPEG)
+# Webcam is used ONLY here.
+# =========================================================
+
+# MediaPipe setup (no webcam yet)
+mp_drawing = mp.solutions.drawing_utils
+mp_drawing_styles = mp.solutions.drawing_styles
+mp_pose = mp.solutions.pose
+mp_hands = mp.solutions.hands
+
+# CSV output for Q2
+RESULTS_DIR = "results"
+os.makedirs(RESULTS_DIR, exist_ok=True)
+POSE_HAND_CSV = os.path.join(RESULTS_DIR, "pose_hand_data.csv")
+
+# Create CSV header once
+if not os.path.exists(POSE_HAND_CSV):
+    with open(POSE_HAND_CSV, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["frame_idx", "part", "landmark_id", "x", "y", "z", "visibility"])
+
+
+def pose_hand_frame_generator():
+    """
+    Opens the webcam, runs MediaPipe pose + hands,
+    writes all landmarks to CSV and yields annotated frames.
+    The webcam is opened ONLY while this generator is active.
+    """
+    cap = cv2.VideoCapture(0)  # webcam only for Q2
+    frame_idx = 0
+
+    try:
+        with mp_pose.Pose(
+            model_complexity=1,
+            enable_segmentation=False,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
+        ) as pose, mp_hands.Hands(
+            max_num_hands=2,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
+        ) as hands:
+
+            while True:
+                ok, frame = cap.read()
+                if not ok:
+                    break
+
+                # BGR → RGB for MediaPipe
+                image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                image_rgb.flags.writeable = False
+
+                pose_results = pose.process(image_rgb)
+                hands_results = hands.process(image_rgb)
+
+                # Back to BGR for drawing
+                image_rgb.flags.writeable = True
+                annotated = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+
+                # Draw pose landmarks
+                if pose_results.pose_landmarks:
+                    mp_drawing.draw_landmarks(
+                        annotated,
+                        pose_results.pose_landmarks,
+                        mp_pose.POSE_CONNECTIONS,
+                        landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style(),
+                    )
+
+                # Draw hand landmarks
+                if hands_results.multi_hand_landmarks:
+                    for hand_lms in hands_results.multi_hand_landmarks:
+                        mp_drawing.draw_landmarks(
+                            annotated,
+                            hand_lms,
+                            mp_hands.HAND_CONNECTIONS,
+                            landmark_drawing_spec=mp_drawing_styles.get_default_hand_landmarks_style(),
+                        )
+
+                # Append data to CSV
+                with open(POSE_HAND_CSV, "a", newline="") as f:
+                    writer = csv.writer(f)
+
+                    if pose_results.pose_landmarks:
+                        for idx, lm in enumerate(pose_results.pose_landmarks.landmark):
+                            writer.writerow(
+                                [frame_idx, "pose", idx, lm.x, lm.y, lm.z, lm.visibility]
+                            )
+
+                    if hands_results.multi_hand_landmarks:
+                        for hand_idx, hand_lms in enumerate(
+                            hands_results.multi_hand_landmarks
+                        ):
+                            part_name = f"hand_{hand_idx}"
+                            for idx, lm in enumerate(hand_lms.landmark):
+                                writer.writerow(
+                                    [frame_idx, part_name, idx, lm.x, lm.y, lm.z, 1.0]
+                                )
+
+                # Encode annotated frame as JPEG for MJPEG streaming
+                ret, buffer = cv2.imencode(".jpg", annotated)
+                if not ret:
+                    break
+
+                frame_bytes = buffer.tobytes()
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+                )
+
+                frame_idx += 1
+    finally:
+        cap.release()
+
+
+@app.route("/module7/q2")
+def module7_q2():
+    """Instruction page + <img> element that shows the MJPEG stream."""
+    return render_template("M7Q2.html")
+
+
+@app.route("/module7/q2/video")
+def module7_q2_video():
+    """MJPEG video stream endpoint used by <img src='...'> in M7Q2.html."""
+    return Response(
+        pose_hand_frame_generator(),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+# =========================================================
+# ENTRYPOINT
+# =========================================================
 if __name__ == "__main__":
-    #app.run(debug=True)
-    port = int(os.environ.get("PORT", 5000))   # use Railway's PORT if given
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
+    # port = int(os.environ.get("PORT", 5000))   # use Railway's PORT if given
+    # app.run(host="0.0.0.0", port=port)

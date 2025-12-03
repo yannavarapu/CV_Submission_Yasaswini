@@ -20,7 +20,13 @@ import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import math
-import mediapipe_lite as mp
+try:
+    import mediapipe as mp
+    MP_AVAILABLE = True
+except Exception:
+    print("⚠️ Mediapipe NOT available on this system.")
+    MP_AVAILABLE = False
+
 import csv
 
 app = Flask(__name__)

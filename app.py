@@ -24,8 +24,9 @@ try:
     import mediapipe as mp
     MP_AVAILABLE = True
 except Exception:
-    print("⚠️ Mediapipe NOT available on this system.")
+    print("⚠️ Mediapipe NOT available on this system. /module7/q2 will be disabled.")
     MP_AVAILABLE = False
+    mp = None  # so references to mp won’t crash
 
 import csv
 
@@ -1752,120 +1753,148 @@ def module7_q1():
 # Webcam is used ONLY here.
 # =========================================================
 
-# MediaPipe setup (no webcam yet)
-mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
-mp_pose = mp.solutions.pose
-mp_hands = mp.solutions.hands
-
-# CSV output for Q2
 RESULTS_DIR = "results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 POSE_HAND_CSV = os.path.join(RESULTS_DIR, "pose_hand_data.csv")
 
-# Create CSV header once
+# Create CSV header once (this works even if mediapipe is missing)
 if not os.path.exists(POSE_HAND_CSV):
     with open(POSE_HAND_CSV, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["frame_idx", "part", "landmark_id", "x", "y", "z", "visibility"])
 
 
-def pose_hand_frame_generator():
-    """
-    Opens the webcam, runs MediaPipe pose + hands,
-    writes all landmarks to CSV and yields annotated frames.
-    The webcam is opened ONLY while this generator is active.
-    """
-    cap = cv2.VideoCapture(0)  # webcam only for Q2
-    frame_idx = 0
+if MP_AVAILABLE:
+    # ----- Real MediaPipe setup -----
+    mp_drawing = mp.solutions.drawing_utils
+    mp_drawing_styles = mp.solutions.drawing_styles
+    mp_pose = mp.solutions.pose
+    mp_hands = mp.solutions.hands
 
-    try:
-        with mp_pose.Pose(
-            model_complexity=1,
-            enable_segmentation=False,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
-        ) as pose, mp_hands.Hands(
-            max_num_hands=2,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
-        ) as hands:
+    def pose_hand_frame_generator():
+        """
+        Opens the webcam, runs MediaPipe pose + hands,
+        writes all landmarks to CSV and yields annotated frames.
+        The webcam is opened ONLY while this generator is active.
+        """
+        cap = cv2.VideoCapture(0)  # webcam only for Q2
+        frame_idx = 0
 
-            while True:
-                ok, frame = cap.read()
-                if not ok:
-                    break
+        try:
+            with mp_pose.Pose(
+                model_complexity=1,
+                enable_segmentation=False,
+                min_detection_confidence=0.5,
+                min_tracking_confidence=0.5,
+            ) as pose, mp_hands.Hands(
+                max_num_hands=2,
+                min_detection_confidence=0.5,
+                min_tracking_confidence=0.5,
+            ) as hands:
 
-                # BGR → RGB for MediaPipe
-                image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                image_rgb.flags.writeable = False
+                while True:
+                    ok, frame = cap.read()
+                    if not ok:
+                        break
 
-                pose_results = pose.process(image_rgb)
-                hands_results = hands.process(image_rgb)
+                    # BGR → RGB for MediaPipe
+                    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    image_rgb.flags.writeable = False
 
-                # Back to BGR for drawing
-                image_rgb.flags.writeable = True
-                annotated = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+                    pose_results = pose.process(image_rgb)
+                    hands_results = hands.process(image_rgb)
 
-                # Draw pose landmarks
-                if pose_results.pose_landmarks:
-                    mp_drawing.draw_landmarks(
-                        annotated,
-                        pose_results.pose_landmarks,
-                        mp_pose.POSE_CONNECTIONS,
-                        landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style(),
-                    )
+                    # Back to BGR for drawing
+                    image_rgb.flags.writeable = True
+                    annotated = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
 
-                # Draw hand landmarks
-                if hands_results.multi_hand_landmarks:
-                    for hand_lms in hands_results.multi_hand_landmarks:
+                    # Draw pose landmarks
+                    if pose_results.pose_landmarks:
                         mp_drawing.draw_landmarks(
                             annotated,
-                            hand_lms,
-                            mp_hands.HAND_CONNECTIONS,
-                            landmark_drawing_spec=mp_drawing_styles.get_default_hand_landmarks_style(),
+                            pose_results.pose_landmarks,
+                            mp_pose.POSE_CONNECTIONS,
+                            landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style(),
                         )
 
-                # Append data to CSV
-                with open(POSE_HAND_CSV, "a", newline="") as f:
-                    writer = csv.writer(f)
-
-                    if pose_results.pose_landmarks:
-                        for idx, lm in enumerate(pose_results.pose_landmarks.landmark):
-                            writer.writerow(
-                                [frame_idx, "pose", idx, lm.x, lm.y, lm.z, lm.visibility]
+                    # Draw hand landmarks
+                    if hands_results.multi_hand_landmarks:
+                        for hand_lms in hands_results.multi_hand_landmarks:
+                            mp_drawing.draw_landmarks(
+                                annotated,
+                                hand_lms,
+                                mp_hands.HAND_CONNECTIONS,
+                                landmark_drawing_spec=mp_drawing_styles.get_default_hand_landmarks_style(),
                             )
 
-                    if hands_results.multi_hand_landmarks:
-                        for hand_idx, hand_lms in enumerate(
-                            hands_results.multi_hand_landmarks
-                        ):
-                            part_name = f"hand_{hand_idx}"
-                            for idx, lm in enumerate(hand_lms.landmark):
+                    # Append data to CSV
+                    with open(POSE_HAND_CSV, "a", newline="") as f:
+                        writer = csv.writer(f)
+
+                        if pose_results.pose_landmarks:
+                            for idx, lm in enumerate(pose_results.pose_landmarks.landmark):
                                 writer.writerow(
-                                    [frame_idx, part_name, idx, lm.x, lm.y, lm.z, 1.0]
+                                    [frame_idx, "pose", idx, lm.x, lm.y, lm.z, lm.visibility]
                                 )
 
-                # Encode annotated frame as JPEG for MJPEG streaming
-                ret, buffer = cv2.imencode(".jpg", annotated)
-                if not ret:
-                    break
+                        if hands_results.multi_hand_landmarks:
+                            for hand_idx, hand_lms in enumerate(
+                                hands_results.multi_hand_landmarks
+                            ):
+                                part_name = f"hand_{hand_idx}"
+                                for idx, lm in enumerate(hand_lms.landmark):
+                                    writer.writerow(
+                                        [frame_idx, part_name, idx, lm.x, lm.y, lm.z, 1.0]
+                                    )
 
-                frame_bytes = buffer.tobytes()
-                yield (
-                    b"--frame\r\n"
-                    b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
-                )
+                    # Encode annotated frame as JPEG for MJPEG streaming
+                    ret, buffer = cv2.imencode(".jpg", annotated)
+                    if not ret:
+                        break
 
-                frame_idx += 1
-    finally:
-        cap.release()
+                    frame_bytes = buffer.tobytes()
+                    yield (
+                        b"--frame\r\n"
+                        b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+                    )
 
+                    frame_idx += 1
+        finally:
+            cap.release()
+
+else:
+    # ----- Stub generator: no MediaPipe installed -----
+    def pose_hand_frame_generator():
+        """
+        Dummy generator when MediaPipe isn't installed.
+        Shows a simple placeholder frame instead of crashing the app.
+        """
+        # Create a simple black image with a warning text
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        cv2.putText(
+            frame,
+            "Mediapipe not installed",
+            (40, 240),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            (0, 0, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        ret, buffer = cv2.imencode(".jpg", frame)
+        frame_bytes = buffer.tobytes()
+
+        while True:
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+            )
 
 @app.route("/module7/q2")
 def module7_q2():
     """Instruction page + <img> element that shows the MJPEG stream."""
-    return render_template("M7Q2.html")
+    # You can make M7Q2.html show a message if mp is unavailable using this flag
+    return render_template("M7Q2.html", mp_available=MP_AVAILABLE)
 
 
 @app.route("/module7/q2/video")
@@ -1875,6 +1904,7 @@ def module7_q2_video():
         pose_hand_frame_generator(),
         mimetype="multipart/x-mixed-replace; boundary=frame",
     )
+
 
 
 # =========================================================
